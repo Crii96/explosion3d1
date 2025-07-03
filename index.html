@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>3D Exploding Geometry con Grana</title>
+  <style>
+    html, body {
+      margin: 0;
+      overflow: hidden;
+      background: transparent;
+    }
+    canvas#threejs {
+      display: block;
+      pointer-events: none;
+      filter: blur(0px);
+      transition: filter 1s ease;
+    }
+    body.reforming canvas#threejs {
+      filter: blur(3px);
+    }
+    canvas#grain {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      pointer-events: none;
+      width: 100vw;
+      height: 100vh;
+      opacity: 0.1;
+      mix-blend-mode: soft-light;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="grain"></canvas>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r150/three.min.js"></script>
+  <script>
+    const grainCanvas = document.getElementById("grain");
+    const grainCtx = grainCanvas.getContext("2d");
+    function resizeGrain() {
+      grainCanvas.width = window.innerWidth;
+      grainCanvas.height = window.innerHeight;
+    }
+    function drawGrain() {
+      const w = grainCanvas.width;
+      const h = grainCanvas.height;
+      const imgData = grainCtx.createImageData(w, h);
+      for (let i = 0; i < imgData.data.length; i += 4) {
+        const val = Math.random() * 255;
+        imgData.data[i] = val;
+        imgData.data[i+1] = val;
+        imgData.data[i+2] = val;
+        imgData.data[i+3] = 20;
+      }
+      grainCtx.putImageData(imgData, 0, 0);
+    }
+    resizeGrain();
+    drawGrain();
+    setInterval(drawGrain, 100);
+    window.addEventListener("resize", resizeGrain);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 10;
+
+    const renderer = new THREE.WebGLRenderer({ alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.domElement.id = "threejs";
+    document.body.appendChild(renderer.domElement);
+
+    const light = new THREE.PointLight(0xffffff, 1);
+    light.position.set(5, 5, 5);
+    scene.add(light);
+
+    const fragments = [];
+    const gridSize = 4;
+    const spacing = 1.2;
+
+    for (let x = -gridSize; x <= gridSize; x++) {
+      for (let y = -gridSize; y <= gridSize; y++) {
+        for (let z = -gridSize; z <= gridSize; z++) {
+          if (Math.random() > 0.7) continue;
+          const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+          const material = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            metalness: 0.9,
+            roughness: 0.2,
+          });
+          const cube = new THREE.Mesh(geometry, material);
+          cube.position.set(x * spacing, y * spacing, z * spacing);
+          cube.userData.initialPosition = cube.position.clone();
+          cube.userData.velocity = new THREE.Vector3(0, 0, 0);
+          cube.userData.rotationSpeed = new THREE.Vector3(0, 0, 0);
+          scene.add(cube);
+          fragments.push(cube);
+        }
+      }
+    }
+
+    let isReforming = false;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      fragments.forEach(frag => {
+        if (isReforming) {
+          frag.position.lerp(frag.userData.initialPosition, 0.08);
+          frag.userData.velocity.set(0, 0, 0);
+          frag.userData.rotationSpeed.set(0, 0, 0);
+          frag.rotation.x *= 0.92;
+          frag.rotation.y *= 0.92;
+          frag.rotation.z *= 0.92;
+        } else {
+          frag.position.add(frag.userData.velocity);
+          frag.rotation.x += frag.userData.rotationSpeed.x;
+          frag.rotation.y += frag.userData.rotationSpeed.y;
+          frag.rotation.z += frag.userData.rotationSpeed.z;
+        }
+      });
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    document.body.addEventListener('mouseenter', () => {
+      isReforming = false;
+      document.body.classList.remove('reforming');
+      fragments.forEach(frag => {
+        frag.userData.velocity = new THREE.Vector3(
+          (Math.random() - 0.5) * 2,
+          (Math.random() - 0.5) * 2,
+          (Math.random() - 0.5) * 2
+        );
+        frag.userData.rotationSpeed = new THREE.Vector3(
+          Math.random() * 0.02,
+          Math.random() * 0.02,
+          Math.random() * 0.02
+        );
+      });
+    });
+
+    document.body.addEventListener('mouseleave', () => {
+      isReforming = true;
+      document.body.classList.add('reforming');
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
