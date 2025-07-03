@@ -5,11 +5,18 @@
   <title>3D Exploding Geometry con Grana</title>
   <style>
     html, body {
+      height: 100%,
       margin: 0;
       overflow: hidden;
       background: transparent;
     }
     canvas#threejs {
+      width: 100vw;
+  height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
       display: block;
       pointer-events: none;
       filter: blur(0px);
